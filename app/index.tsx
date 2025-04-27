@@ -9,7 +9,7 @@ export default function Index() {
         alignItems: "center",
       }}
     >
-      <Text className="font-bold text-lg my-10">WhatTheFi ? Track it, or regret it.</Text>
+      <Text className="font-rubik text-3xl my-10">WhatTheFi ? Track it, or regret it.</Text>
       <Link href="/home">Home</Link>
       <Link href="/appsettings">Settings</Link> 
       <Link href="/devinfo"> DevInfo</Link>
