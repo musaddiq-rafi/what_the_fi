@@ -1,6 +1,5 @@
 import { Link } from "expo-router";
 import { Text, View } from "react-native";
-
 export default function Index() {
   return (
     <View
@@ -10,7 +9,7 @@ export default function Index() {
         alignItems: "center",
       }}
     >
-      <Text>WhatTheFi ? Track it, or regret it.</Text>
+      <Text className="font-bold text-lg my-10">WhatTheFi ? Track it, or regret it.</Text>
       <Link href="/home">Home</Link>
       <Link href="/appsettings">Settings</Link> 
       <Link href="/devinfo"> DevInfo</Link>
