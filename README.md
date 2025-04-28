@@ -1,6 +1,10 @@
 # WhatTheFi - WiFi Usage Tracking App 📱
 
-WhatTheFi is a mobile application built with Expo and React Native that helps you track and manage your WiFi usage, specially designed for IUT hall residents.
+WhatTheFi is a mobile application built with Expo and React Native that helps you track and manage your WiFi usage, specially designed for IUT hall residents.\
+
+<p align="center">
+   <img src="./assets/images/splash-icon-iut.png" alt="WhatTheFi Logo" width="300" />
+</p>
 
 ## Features
 
