@@ -1,12 +1,106 @@
-import { View, Text } from 'react-native'
-import React from 'react'
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, Switch, ScrollView } from 'react-native';
+import { settings } from '@/constants/data';
 
-const appsettings = () => {
+const AppSettings = () => {
+  const [resetDay, setResetDay] = useState(21);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [thresholdValue, setThresholdValue] = useState(10500);
+  
+  const daysOfMonth = Array.from({ length: 28 }, (_, i) => i + 1);
+  
   return (
-    <View>
-      <Text>appsettings</Text>
-    </View>
-  )
-}
+    <ScrollView className="flex-1 bg-white pt-12">
+      <Text className="font-rubik-bold text-3xl mx-4 mb-6">Settings</Text>
+      
+      <View className="mx-4 mb-6">
+        <Text className="font-rubik-medium text-lg mb-2">Reset Day</Text>
+        <Text className="font-rubik text-black-200 mb-4">
+          All WiFi counters will reset on the selected day of each month
+        </Text>
+        
+        <View className="flex-row flex-wrap">
+          {daysOfMonth.map(day => (
+            <TouchableOpacity 
+              key={day}
+              onPress={() => setResetDay(day)}
+              className={`w-10 h-10 rounded-full mr-2 mb-2 items-center justify-center 
+                ${resetDay === day ? 'bg-primary-300' : 'bg-primary-100'}`}
+            >
+              <Text 
+                className={`font-rubik-medium ${resetDay === day ? 'text-white' : 'text-primary-300'}`}
+              >
+                {day}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+      
+      <View className="mx-4 mb-6">
+        <Text className="font-rubik-medium text-lg mb-2">Notifications</Text>
+        
+        <View className="flex-row justify-between items-center mb-4">
+          <View>
+            <Text className="font-rubik">Enable Notifications</Text>
+            <Text className="font-rubik text-xs text-black-200">Get alerts when WiFi usage reaches threshold</Text>
+          </View>
+          <Switch
+            value={notificationsEnabled}
+            onValueChange={setNotificationsEnabled}
+            trackColor={{ false: '#E1E1E1', true: '#0061FF' }}
+            thumbColor="#ffffff"
+          />
+        </View>
+        
+        <View className="flex-row justify-between items-center">
+          <View>
+            <Text className="font-rubik">Alert Threshold</Text>
+            <Text className="font-rubik text-xs text-black-200">Minutes before sending notification</Text>
+          </View>
+          <View className="flex-row items-center">
+            <TouchableOpacity 
+              onPress={() => setThresholdValue(Math.max(0, thresholdValue - 500))}
+              className="bg-primary-100 w-8 h-8 rounded-full items-center justify-center"
+            >
+              <Text className="font-rubik-bold text-primary-300">-</Text>
+            </TouchableOpacity>
+            
+            <Text className="font-rubik-medium mx-3 w-20 text-center">{thresholdValue}</Text>
+            
+            <TouchableOpacity 
+              onPress={() => setThresholdValue(Math.min(12000, thresholdValue + 500))}
+              className="bg-primary-100 w-8 h-8 rounded-full items-center justify-center"
+            >
+              <Text className="font-rubik-bold text-primary-300">+</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+      
+      <View className="mx-4 mb-4">
+        <Text className="font-rubik-medium text-lg mb-2">App</Text>
+        
+        <TouchableOpacity className="py-3 border-b border-primary-100">
+          <Text className="font-rubik">Reset All Data</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity className="py-3 border-b border-primary-100">
+          <Text className="font-rubik">Backup Data</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity className="py-3 border-b border-primary-100">
+          <Text className="font-rubik">Restore Data</Text>
+        </TouchableOpacity>
+      </View>
+      
+      <View className="mx-4 mt-6 mb-12">
+        <Text className="font-rubik text-center text-black-100">
+          Version 1.0.0
+        </Text>
+      </View>
+    </ScrollView>
+  );
+};
 
-export default appsettings
+export default AppSettings;

@@ -1,51 +1,72 @@
-# Welcome to your Expo app 👋
+# WhatTheFi - WiFi Usage Tracking App 📱
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+WhatTheFi is a mobile application built with Expo and React Native that helps you track and manage your WiFi usage, specially designed for IUT hall residents.
 
-## Get started
+## Features
 
-1. Install dependencies
+- Track daily/monthly WiFi usage
+- Set usage thresholds and receive notifications
+- Customize reset days for billing cycles
+- Clean and intuitive user interface
+- Cross-platform (iOS and Android)
+- Optimized for IUT hall network monitoring
+
+## Getting Started
+
+1. Clone the repository
+
+   ```bash
+   git clone https://github.com/yourusername/what_the_fi.git
+   cd what_the_fi
+   ```
+
+2. Install dependencies
 
    ```bash
    npm install
    ```
 
-2. Start the app
+3. Start the app
 
    ```bash
-    npx expo start
+   npx expo start
    ```
 
-In the output, you'll find options to open the app in a
+## Development
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+This project uses:
+- [Expo](https://expo.dev) for cross-platform development
+- [NativeWind](https://nativewind.dev) (TailwindCSS) for styling
+- [Expo Router](https://docs.expo.dev/router/introduction) for file-based navigation
+- TypeScript for type safety
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+### Project Structure
 
-## Get a fresh project
+- `/app` - Main application code with file-based routing
+- `/assets` - Images, fonts, and other static assets
+- `/components` - Reusable UI components
+- `/constants` - App constants and data
 
-When you're ready, run:
+## Running on Device [WILL BE UPDATED SOON]
+
+- Install [Expo Go](https://expo.dev/go) on your mobile device
+- Scan the QR code from the terminal after running `npx expo start`
+- Alternatively, use an emulator with `--ios` or `--android` flag
+
+## Build & Deploy
+
+To create a production build:
 
 ```bash
-npm run reset-project
+npx expo prebuild
+npx expo build:android
+npx expo build:ios
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Contributing
 
-## Learn more
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-To learn more about developing your project with Expo, look at the following resources:
+## License
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
-# what_the_fi
+This project is licensed under the MIT License - see the LICENSE file for details.
