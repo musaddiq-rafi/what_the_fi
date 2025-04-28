@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Switch, ScrollView } from 'react-native';
-import { settings } from '@/constants/data';
 
 const AppSettings = () => {
   const [resetDay, setResetDay] = useState(21);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [thresholdValue, setThresholdValue] = useState(10500);
   
-  const daysOfMonth = Array.from({ length: 28 }, (_, i) => i + 1);
+  // Generate days 1-31 to accommodate all possible month lengths
+  const daysOfMonth = Array.from({ length: 31 }, (_, i) => i + 1);
   
   return (
     <ScrollView className="flex-1 bg-white pt-12">
@@ -19,24 +19,27 @@ const AppSettings = () => {
           All WiFi counters will reset on the selected day of each month
         </Text>
         
-        <View className="flex-row flex-wrap">
+        <View className="flex-row mx-5 flex-wrap">
           {daysOfMonth.map(day => (
             <TouchableOpacity 
               key={day}
               onPress={() => setResetDay(day)}
               className={`w-10 h-10 rounded-full mr-2 mb-2 items-center justify-center 
-                ${resetDay === day ? 'bg-primary-300' : 'bg-primary-100'}`}
+          ${resetDay === day ? 'bg-primary-300' : 'bg-primary-100'}`}
             >
               <Text 
-                className={`font-rubik-medium ${resetDay === day ? 'text-white' : 'text-primary-300'}`}
+          className={`font-rubik-medium ${resetDay === day ? 'text-white' : 'text-primary-300'}`}
               >
-                {day}
+          {day}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
+        <Text className="font-rubik text-xs text-primary-300 mt-2">
+          You have selected {resetDay}{resetDay === 1 ? 'st' : resetDay === 2 ? 'nd' : resetDay === 3 ? 'rd' : 'th'} of every month. 
+          The WTFi app counter will reset on this day.
+        </Text>
       </View>
-      
       <View className="mx-4 mb-6">
         <Text className="font-rubik-medium text-lg mb-2">Notifications</Text>
         
@@ -79,7 +82,7 @@ const AppSettings = () => {
       </View>
       
       <View className="mx-4 mb-4">
-        <Text className="font-rubik-medium text-lg mb-2">App</Text>
+        <Text className="font-rubik-medium text-lg mb-2">Backup and Reset</Text>
         
         <TouchableOpacity className="py-3 border-b border-primary-100">
           <Text className="font-rubik">Reset All Data</Text>
@@ -94,10 +97,10 @@ const AppSettings = () => {
         </TouchableOpacity>
       </View>
       
-      <View className="mx-4 mt-6 mb-12">
-        <Text className="font-rubik text-center text-black-100">
-          Version 1.0.0
-        </Text>
+      <View className="mx-4 mb-20 mt-10">
+      <Text className="font-rubik text-center text-black text-sm border border-red-500">
+           test text 
+      </Text>
       </View>
     </ScrollView>
   );

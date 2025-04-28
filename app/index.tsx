@@ -1,16 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, SafeAreaView, Image, TouchableOpacity } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import WifiTile from '@/components/wifi/WiFiTile';
 import ActiveWifi from '@/components/wifi/ActiveWifi';
 import { useStorage } from '@/hooks/useStorage';
 import { checkResetDate } from '@/utils/dateUtils';
 import icons from '@/constants/icons';
 
-// Define types
+// Define types with enhanced fields
 interface WiFiConnection {
   id: string;
   name: string;
+  username: string;
+  password: string;
   usedMinutes: number;
   totalMinutes: number;
   isActive: boolean;
@@ -21,45 +23,48 @@ export default function Index() {
   const { loadData, saveData } = useStorage();
   const router = useRouter();
   
-  // Initial data
-  const [connections, setConnections] = useState<WiFiConnection[]>([
-    { id: 'wifi1', name: 'Home WiFi', usedMinutes: 8500, totalMinutes: 12000, isActive: false },
-    { id: 'wifi2', name: 'Office WiFi', usedMinutes: 3200, totalMinutes: 12000, isActive: false },
-    { id: 'wifi3', name: 'Mobile Hotspot', usedMinutes: 11000, totalMinutes: 12000, isActive: false },
-    { id: 'wifi4', name: 'Add New', usedMinutes: 0, totalMinutes: 12000, isActive: false },
-  ]);
+  const [connections, setConnections] = useState<WiFiConnection[]>( []);
   
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load data from storage on mount
-  useEffect(() => {
-    const getData = async () => {
-      setIsLoading(true);
-      const storedConnections = await loadData('connections');
-      if (storedConnections && storedConnections.length > 0) {
-        setConnections(storedConnections);
-      }
-      // Get reset day and check if reset is needed
-      const resetDay = await loadData('resetDay') || 21;
-      const shouldReset = checkResetDate(resetDay);
-      
-      if (shouldReset) {
-        // Reset all counters
-        const resetConnections = connections.map(conn => ({
-          ...conn,
-          usedMinutes: 0
-        }));
-        setConnections(resetConnections);
-        await saveData('connections', resetConnections);
-        await saveData('lastResetDate', new Date().toISOString());
-      }
-      
-      setIsLoading(false);
-    };
+  // Create a reusable function to load connections data
+  const loadConnections = useCallback(async () => {
+    setIsLoading(true);
+    const storedConnections = await loadData('connections');
+    if (storedConnections && storedConnections.length > 0) {
+      setConnections(storedConnections);
+    }
     
-    getData();
+    // Get reset day and check if reset is needed
+    const resetDay = await loadData('resetDay') || 21;
+    const shouldReset = checkResetDate(resetDay);
+    
+    if (shouldReset) {
+      // Reset all counters
+      const resetConnections = storedConnections ? storedConnections.map((conn: WiFiConnection) => ({
+        ...conn,
+        usedMinutes: 0
+      })) : connections.map(conn => ({
+        ...conn,
+        usedMinutes: 0
+      }));
+      
+      setConnections(resetConnections);
+      await saveData('connections', resetConnections);
+      await saveData('lastResetDate', new Date().toISOString());
+    }
+    
+    setIsLoading(false);
   }, []);
 
+  // Use useFocusEffect to reload data whenever the screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadConnections();
+      // No need to include loadConnections in dependencies array as it's already wrapped in useCallback
+    }, [])
+  );
+  
   // Save data to storage when connections change
   useEffect(() => {
     if (!isLoading) {
@@ -110,7 +115,14 @@ export default function Index() {
   const handleAddNew = () => {
     router.push({
       pathname: '/edit-wifi',
-      params: { id: 'wifi4' }
+      params: { id: 'new' }
+    });
+  };
+
+  const handleEditWifi = (id: string) => {
+    router.push({
+      pathname: '/edit-wifi',
+      params: { id }
     });
   };
 
@@ -131,9 +143,11 @@ export default function Index() {
             <ActiveWifi
               id={activeConnection.id}
               name={activeConnection.name}
+              username={activeConnection.username}
               usedMinutes={activeConnection.usedMinutes}
               totalMinutes={activeConnection.totalMinutes}
               onStop={handleStopTracking}
+              onEdit={() => handleEditWifi(activeConnection.id)}
             />
           </View>
         ) : (
@@ -153,19 +167,27 @@ export default function Index() {
           </View>
           
           {connections
-            .filter(conn => conn.id !== 'wifi4' && !conn.isActive)
+            .filter(conn => conn.id !== 'new' && !conn.isActive)
             .map(conn => (
               <View key={conn.id} className="mx-4 mb-3">
                 <WifiTile
                   id={conn.id}
                   name={conn.name}
+                  username={conn.username}
                   usedMinutes={conn.usedMinutes}
                   totalMinutes={conn.totalMinutes}
                   isActive={conn.isActive}
                   onActivate={() => handleActivate(conn.id)}
+                  onEdit={() => handleEditWifi(conn.id)}
                 />
               </View>
             ))}
+        </View>
+        
+        {/* Footer with creator info */}
+        <View className="py-4 items-center mb-2">
+        
+          <Text className="font-rubik text-gray-400 text-xs mt-1"> </Text> // this part was intentionally left blank
         </View>
       </ScrollView>
     </SafeAreaView>
