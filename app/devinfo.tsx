@@ -25,7 +25,7 @@ const DevInfo = () => {
 
   return (
     <SafeAreaView className="flex-1 bg-white">
-      <ScrollView className="flex-1 pt-12">
+      <ScrollView className="flex-1 pt-20">
         <Text className="font-rubik-bold text-3xl mx-4 mb-2">Developer Info</Text>
         <Text className="font-rubik text-black-200 mx-4 mb-6">About this app and developer</Text>
         

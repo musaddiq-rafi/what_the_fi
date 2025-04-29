@@ -10,7 +10,7 @@ const AppSettings = () => {
   const daysOfMonth = Array.from({ length: 31 }, (_, i) => i + 1);
   
   return (
-    <ScrollView className="flex-1 bg-white pt-12">
+    <ScrollView className="flex-1 bg-white pt-20">
       <Text className="font-rubik-bold text-3xl mx-4 mb-6">Settings</Text>
       
       <View className="mx-4 mb-6">

@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, SafeAreaView, Image, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, SafeAreaView, Image, TouchableOpacity, AppState, AppStateStatus } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import WifiTile from '@/components/wifi/WiFiTile';
 import ActiveWifi from '@/components/wifi/ActiveWifi';
 import { useStorage } from '@/hooks/useStorage';
 import { checkResetDate } from '@/utils/dateUtils';
 import icons from '@/constants/icons';
+import * as Notifications from 'expo-notifications';
 
 // Define types with enhanced fields
 interface WiFiConnection {
@@ -19,13 +20,33 @@ interface WiFiConnection {
   lastUpdated?: number;
 }
 
+// Configure notifications
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
+
 export default function Index() {
   const { loadData, saveData } = useStorage();
   const router = useRouter();
   
-  const [connections, setConnections] = useState<WiFiConnection[]>( []);
-  
+  const [connections, setConnections] = useState<WiFiConnection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [appState, setAppState] = useState(AppState.currentState);
+  const [notificationPermission, setNotificationPermission] = useState(false);
+
+  // Request notification permissions
+  useEffect(() => {
+    const requestPermissions = async () => {
+      const { status } = await Notifications.requestPermissionsAsync();
+      setNotificationPermission(status === 'granted');
+    };
+
+    requestPermissions();
+  }, []);
 
   // Create a reusable function to load connections data
   const loadConnections = useCallback(async () => {
@@ -61,7 +82,6 @@ export default function Index() {
   useFocusEffect(
     useCallback(() => {
       loadConnections();
-      // No need to include loadConnections in dependencies array as it's already wrapped in useCallback
     }, [])
   );
   
@@ -71,42 +91,128 @@ export default function Index() {
       saveData('connections', connections);
     }
   }, [connections, isLoading]);
+
+  // Track app state (foreground, background)
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => {
+      subscription.remove();
+    };
+  }, [connections]);
+
+  // Handle app state changes to save/restore active connection
+  const handleAppStateChange = async (nextAppState: AppStateStatus) => {
+    if (appState === 'active' && nextAppState.match(/inactive|background/)) {
+      // App is going to background or inactive, save connections state
+      await saveData('connections', connections);
+    }
+    setAppState(nextAppState);
+  };
   
   // Find active connection
   const activeConnection = connections.find(conn => conn.isActive);
   
   // Handle activation of a WiFi connection
-  const handleActivate = (id: string) => {
-    setConnections(prev => prev.map(conn => ({
+  const handleActivate = async (id: string) => {
+    // Update connections with the newly activated one
+    const updatedConnections = connections.map(conn => ({
       ...conn,
       isActive: conn.id === id,
       lastUpdated: conn.id === id ? Date.now() : conn.lastUpdated
-    })));
+    }));
+
+    setConnections(updatedConnections);
+    
+    // Immediately save to AsyncStorage to persist active state
+    await saveData('connections', updatedConnections);
+    
+    // Send notification if permissions granted
+    if (notificationPermission) {
+      const activatedConn = connections.find(conn => conn.id === id);
+      if (activatedConn) {
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: "WiFi Tracking Started",
+            body: `Now tracking usage for ${activatedConn.name}`,
+            data: { id: activatedConn.id },
+          },
+          trigger: null, // Send immediately
+        });
+      }
+    }
   };
   
   // Handle stopping an active connection
-  const handleStopTracking = () => {
-    setConnections(prev => prev.map(conn => ({
+  const handleStopTracking = async () => {
+    if (activeConnection && notificationPermission) {
+      // Send notification when tracking stops
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: "WiFi Tracking Stopped",
+          body: `Stopped tracking ${activeConnection.name}. Used: ${activeConnection.usedMinutes} minutes`,
+          data: { id: activeConnection.id },
+        },
+        trigger: null, // Send immediately
+      });
+    }
+
+    const updatedConnections = connections.map(conn => ({
       ...conn,
       isActive: false
-    })));
+    }));
+    
+    setConnections(updatedConnections);
+    
+    // Immediately save to AsyncStorage
+    await saveData('connections', updatedConnections);
   };
+
+  // Check for threshold limits and notify user
+  useEffect(() => {
+    // Function to check limits and send notification
+    const checkThresholds = async () => {
+      if (!activeConnection || !notificationPermission) return;
+      
+      // Get threshold from settings or use default
+      const thresholdValue = await loadData('thresholdValue') || 10500;
+      
+      // If usage exceeds threshold, send notification
+      if (activeConnection.usedMinutes > thresholdValue && 
+          activeConnection.usedMinutes <= thresholdValue + 5) { // +5 to avoid multiple notifications
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: "WiFi Usage Alert!",
+            body: `Your ${activeConnection.name} usage has exceeded ${thresholdValue} minutes`,
+            data: { id: activeConnection.id },
+          },
+          trigger: null, // Send immediately
+        });
+      }
+    };
+    
+    checkThresholds();
+  }, [activeConnection?.usedMinutes]);
 
   // Simulate counter increment for active connection
   useEffect(() => {
     let interval: NodeJS.Timeout;
     
     if (activeConnection) {
-      interval = setInterval(() => {
-        setConnections(prev => prev.map(conn => 
+      interval = setInterval(async () => {
+        // Add a minute and update last updated timestamp
+        const updatedConnections = connections.map(conn => 
           conn.isActive ? { 
             ...conn, 
             usedMinutes: Math.min(conn.usedMinutes + 1, conn.totalMinutes),
             lastUpdated: Date.now()
           } : conn
-        ));
-      }, 60000); // Update every minute (in real app)
-      // For demo purposes, you might want to use 3000 (3 seconds) instead of 60000
+        );
+        
+        setConnections(updatedConnections);
+        
+        // Save updated usage to AsyncStorage periodically
+        await saveData('connections', updatedConnections);
+      }, 60000); // Update every minute
     }
     
     return () => clearInterval(interval);
@@ -128,7 +234,7 @@ export default function Index() {
 
   return (
     <SafeAreaView className="flex-1 bg-white">
-      <ScrollView className="flex-1 pt-12">
+      <ScrollView className="flex-1 pt-20">
         <View className="flex-row justify-between items-center mx-4 mb-2">
           <Text className="font-rubik-bold text-3xl">WhatTheFi?</Text>
           <TouchableOpacity onPress={() => router.push('/appsettings')}>
@@ -186,8 +292,7 @@ export default function Index() {
         
         {/* Footer with creator info */}
         <View className="py-4 items-center mb-2">
-        
-          <Text className="font-rubik text-gray-400 text-xs mt-1"> </Text> // this part was intentionally left blank
+          <Text className="font-rubik text-gray-400 text-xs mt-1"> </Text>
         </View>
       </ScrollView>
     </SafeAreaView>

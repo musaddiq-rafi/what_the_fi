@@ -9,13 +9,18 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.musaddiq_rafi.what-the-fi",
+      "buildNumber": "1.0.0"
+
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/splash-icon-iut.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.musaddiq_rafi.what_the_fi",
+      "versionCode": 1
     },
     "web": {
       "bundler": "metro",
@@ -49,6 +54,14 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "e105f620-cbae-454c-a66b-5f04c93125c6"
+      }
     }
   }
 }
