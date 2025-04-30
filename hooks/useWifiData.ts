@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { AppState, AppStateStatus } from 'react-native';
 import { useStorage } from './useStorage';
 import { checkResetDate } from '@/utils/dateUtils';
 
@@ -21,36 +22,61 @@ export const useWifiData = () => {
   const { loadData, saveData } = useStorage();
   const [connections, setConnections] = useState<WiFiConnection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  
+  const [appState, setAppState] = useState<AppStateStatus>(AppState.currentState);
+
+  // Sync with background changes
+  const syncWithBackgroundChanges = async () => {
+    try {
+      const storedConnections = await loadData('connections');
+      if (storedConnections) {
+        const activeConnection = storedConnections.find((conn: { isActive: any; }) => conn.isActive);
+        if (activeConnection) {
+          const currentTime = Date.now();
+          const lastUpdated = activeConnection.lastUpdated || currentTime;
+          const minutesElapsed = Math.floor((currentTime - lastUpdated) / 60000);
+
+          if (minutesElapsed > 0) {
+            const updatedConnections = storedConnections.map((conn: { isActive: any; usedMinutes: number; totalMinutes: number; }) =>
+              conn.isActive ? {
+                ...conn,
+                usedMinutes: Math.min(conn.usedMinutes + minutesElapsed, conn.totalMinutes),
+                lastUpdated: currentTime
+              } : conn
+            );
+            setConnections(updatedConnections);
+            await saveData('connections', updatedConnections);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error syncing background changes:', error);
+    }
+  };
+
   // Initialize data
   useEffect(() => {
     const initializeData = async () => {
       setIsLoading(true);
       try {
-        // Load connections from storage
         const storedConnections = await loadData('connections');
-        
-        if (storedConnections && storedConnections.length > 0) {
-          setConnections(storedConnections);
-        } else {
-          // First time - set default connections
-          setConnections(DEFAULT_CONNECTIONS);
-          await saveData('connections', DEFAULT_CONNECTIONS);
-        }
-        
-        // Check if reset is needed
         const resetDay = await loadData('resetDay') || 21;
         const shouldReset = checkResetDate(resetDay);
-        
-        if (shouldReset) {
-          // Reset all counters
-          const resetConnections = connections.map(conn => ({
-            ...conn,
-            usedMinutes: 0
-          }));
-          setConnections(resetConnections);
-          await saveData('connections', resetConnections);
-          await saveData('lastResetDate', new Date().toISOString());
+
+        if (storedConnections && storedConnections.length > 0) {
+          if (shouldReset) {
+            const resetConnections = storedConnections.map((conn: any) => ({
+              ...conn,
+              usedMinutes: 0
+            }));
+            setConnections(resetConnections);
+            await saveData('connections', resetConnections);
+            await saveData('lastResetDate', new Date().toISOString());
+          } else {
+            setConnections(storedConnections);
+          }
+        } else {
+          setConnections(DEFAULT_CONNECTIONS);
+          await saveData('connections', DEFAULT_CONNECTIONS);
         }
       } catch (error) {
         console.error('Error initializing WiFi data:', error);
@@ -58,21 +84,40 @@ export const useWifiData = () => {
         setIsLoading(false);
       }
     };
-    
+
     initializeData();
   }, []);
-  
-  // Save changes when connections update
+
+  // Handle app state changes
   useEffect(() => {
-    if (!isLoading && connections.length > 0) {
-      saveData('connections', connections);
-    }
-  }, [connections]);
-  
-  // Get active connection
-  const activeConnection = connections.find(conn => conn.isActive);
-  
-  // Activate/start tracking a connection
+    const subscription = AppState.addEventListener('change', async (nextAppState) => {
+      if (appState.match(/inactive|background/) && nextAppState === 'active') {
+        await syncWithBackgroundChanges();
+      }
+      setAppState(nextAppState);
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [appState]);
+
+  // Save connections when updated
+  useEffect(() => {
+    const saveConnections = async () => {
+      if (!isLoading && connections.length > 0) {
+        try {
+          await saveData('connections', connections);
+        } catch (error) {
+          console.error('Error saving connections:', error);
+        }
+      }
+    };
+
+    saveConnections();
+  }, [connections, isLoading]);
+
+  // Core functions
   const activateConnection = (id: string) => {
     setConnections(prev => prev.map(conn => ({
       ...conn,
@@ -80,64 +125,53 @@ export const useWifiData = () => {
       lastUpdated: conn.id === id ? Date.now() : conn.lastUpdated
     })));
   };
-  
-  // Stop tracking the active connection
+
   const stopTracking = () => {
-    setConnections(prev => prev.map(conn => ({
-      ...conn,
-      isActive: false
-    })));
+    setConnections(prev => prev.map(conn => ({ ...conn, isActive: false })));
   };
-  
-  // Add minutes to active connection
+
   const addMinutes = (minutes: number) => {
-    if (activeConnection) {
-      setConnections(prev => prev.map(conn => 
-        conn.isActive ? { 
-          ...conn, 
-          usedMinutes: Math.min(conn.usedMinutes + minutes, conn.totalMinutes)
-        } : conn
-      ));
-    }
+    setConnections(prev =>
+      prev.map(conn =>
+        conn.isActive
+          ? { ...conn, usedMinutes: Math.min(conn.usedMinutes + minutes, conn.totalMinutes) }
+          : conn
+      )
+    );
   };
-  
-  // Reset a specific connection
+
   const resetConnection = (id: string) => {
-    setConnections(prev => prev.map(conn => 
+    setConnections(prev => prev.map(conn =>
       conn.id === id ? { ...conn, usedMinutes: 0 } : conn
     ));
   };
-  
-  // Add a new connection
+
   const addConnection = (connection: Omit<WiFiConnection, 'id'>) => {
-    const newConnection = {
+    const newConnection: WiFiConnection = {
       ...connection,
       id: `wifi-${Date.now()}`,
       isActive: false
     };
     setConnections(prev => [...prev, newConnection]);
   };
-  
-  // Update a connection
+
   const updateConnection = (id: string, connection: Partial<WiFiConnection>) => {
-    setConnections(prev => prev.map(conn => 
+    setConnections(prev => prev.map(conn =>
       conn.id === id ? { ...conn, ...connection } : conn
     ));
   };
-  
-  // Delete a connection
+
   const deleteConnection = (id: string) => {
     setConnections(prev => prev.filter(conn => conn.id !== id));
   };
-  
-  // Reset all connections
+
   const resetAllConnections = () => {
     setConnections(prev => prev.map(conn => ({ ...conn, usedMinutes: 0 })));
   };
-  
+
   return {
     connections,
-    activeConnection,
+    activeConnection: connections.find(conn => conn.isActive),
     isLoading,
     activateConnection,
     stopTracking,

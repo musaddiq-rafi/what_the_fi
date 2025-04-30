@@ -11,7 +11,12 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.musaddiq_rafi.what-the-fi",
-      "buildNumber": "1.0.0"
+      "buildNumber": "1.0.0",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "fetch"
+        ]
+      }
 
     },
     "android": {
@@ -20,7 +25,11 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.musaddiq_rafi.what_the_fi",
-      "versionCode": 1
+      "versionCode": 1,
+      "permissions": [
+        "RECEIVE_BOOT_COMPLETED",
+        "WAKE_LOCK"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -50,8 +59,17 @@
             "./assets/fonts/Rubik-SemiBold.ttf"
           ]
         }
+      ],
+      [
+        "expo-background-fetch",
+        {
+          "ios":{
+            "backgroundMode": ["fetch"]
+          }
+        }
       ]
     ],
+
     "experiments": {
       "typedRoutes": true
     },

@@ -7,6 +7,7 @@ import { useStorage } from '@/hooks/useStorage';
 import { checkResetDate } from '@/utils/dateUtils';
 import icons from '@/constants/icons';
 import * as Notifications from 'expo-notifications';
+import { registerBackgroundTask } from '@/utils/backgroundTaskHandler';
 
 // Define types with enhanced fields
 interface WiFiConnection {
@@ -20,6 +21,23 @@ interface WiFiConnection {
   lastUpdated?: number;
 }
 
+export const getFunnyNotification = (minutes: number, name: string) => {
+  const messages = [
+    `🚨 ${name} WiFi for ${minutes} minutes? IUT authority just sent a drone to chase your wallet.`,
+    `📱 ${name} WiFi for ${minutes} minutes? Even IUT's finance office is impressed by your dedication to bankruptcy.`,
+    `🎮 ${minutes} minutes on WiFi? Netflix called, but IUT called first—they want their cut.`,
+    `🔥 ${name} WiFi for ${minutes} minutes! Your router is now on IUT's payroll.`,
+    `🏃‍♂️ ${name} WiFi says, "Bro, even IUT's semester fees take a break after ${minutes} minutes!"`,
+    `🎭 ${minutes} minutes on ${name} WiFi? Your router is filing a complaint with IUT's admin office.`,
+    `🌟 ${name} WiFi for ${minutes} minutes? Achievement unlocked: "IUT's Favorite Donor."`,
+    `🎪 ${name} WiFi for ${minutes} minutes? Your router just Googled "how to apply for financial aid at IUT."`,
+    `🎯 ${minutes} minutes on WiFi? IUT's finance department just added you to their VIP list.`,
+    `💀 ${minutes} minutes on ${name} WiFi? Your router is now demanding a semester fee refund from IUT.`
+  ];
+  
+  return messages[Math.floor(Math.random() * messages.length)];
+};
+
 // Configure notifications
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -32,11 +50,13 @@ Notifications.setNotificationHandler({
 export default function Index() {
   const { loadData, saveData } = useStorage();
   const router = useRouter();
-  
+  const [lastNotificationTime, setLastNotificationTime] = useState<number>(0);
   const [connections, setConnections] = useState<WiFiConnection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [appState, setAppState] = useState(AppState.currentState);
   const [notificationPermission, setNotificationPermission] = useState(false);
+  const [resetDay, setResetDay] = useState(21);
+  const [thresholdValue, setThresholdValue] = useState(10500);
 
   // Request notification permissions
   useEffect(() => {
@@ -48,6 +68,10 @@ export default function Index() {
     requestPermissions();
   }, []);
 
+  useEffect(() => {
+    registerBackgroundTask();
+  }, []);
+
   // Create a reusable function to load connections data
   const loadConnections = useCallback(async () => {
     setIsLoading(true);
@@ -56,9 +80,15 @@ export default function Index() {
       setConnections(storedConnections);
     }
     
-    // Get reset day and check if reset is needed
-    const resetDay = await loadData('resetDay') || 21;
-    const shouldReset = checkResetDate(resetDay);
+    // Load settings
+    const savedResetDay = await loadData('resetDay') || 21;
+    const savedThreshold = await loadData('thresholdValue') || 10500;
+    
+    setResetDay(savedResetDay);
+    setThresholdValue(savedThreshold);
+    
+    // Check if reset is needed
+    const shouldReset = checkResetDate(savedResetDay);
     
     if (shouldReset) {
       // Reset all counters
@@ -168,30 +198,49 @@ export default function Index() {
   };
 
   // Check for threshold limits and notify user
-  useEffect(() => {
-    // Function to check limits and send notification
-    const checkThresholds = async () => {
-      if (!activeConnection || !notificationPermission) return;
-      
-      // Get threshold from settings or use default
-      const thresholdValue = await loadData('thresholdValue') || 10500;
-      
-      // If usage exceeds threshold, send notification
-      if (activeConnection.usedMinutes > thresholdValue && 
-          activeConnection.usedMinutes <= thresholdValue + 5) { // +5 to avoid multiple notifications
-        await Notifications.scheduleNotificationAsync({
-          content: {
-            title: "WiFi Usage Alert!",
-            body: `Your ${activeConnection.name} usage has exceeded ${thresholdValue} minutes`,
-            data: { id: activeConnection.id },
-          },
-          trigger: null, // Send immediately
-        });
-      }
-    };
+ // Modify the threshold check effect
+useEffect(() => {
+  const checkThresholds = async () => {
+    if (!activeConnection || !notificationPermission) return;
     
-    checkThresholds();
-  }, [activeConnection?.usedMinutes]);
+    const currentTime = Date.now();
+    const twoHoursInMs = 2 * 60 * 60 * 1000;
+    
+    // If usage exceeds threshold and enough time has passed since last notification
+    if (activeConnection.usedMinutes > thresholdValue && 
+        (currentTime - lastNotificationTime >= twoHoursInMs)) {
+      
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: "WiFi Usage Alert!",
+          body: getFunnyNotification(activeConnection.usedMinutes, activeConnection.name),
+          data: { id: activeConnection.id },
+        },
+        trigger: null, // Send immediately
+      });
+      
+      // Update last notification time
+      setLastNotificationTime(currentTime);
+      
+      // Save last notification time to storage
+      await saveData('lastNotificationTime', currentTime);
+    }
+  };
+  
+  checkThresholds();
+}, [activeConnection?.usedMinutes, thresholdValue, lastNotificationTime]);
+
+// Load last notification time when the app starts
+useEffect(() => {
+  const loadLastNotificationTime = async () => {
+    const savedTime = await loadData('lastNotificationTime');
+    if (savedTime) {
+      setLastNotificationTime(savedTime);
+    }
+  };
+  
+  loadLastNotificationTime();
+}, []);
 
   // Simulate counter increment for active connection
   useEffect(() => {
@@ -254,6 +303,8 @@ export default function Index() {
               totalMinutes={activeConnection.totalMinutes}
               onStop={handleStopTracking}
               onEdit={() => handleEditWifi(activeConnection.id)}
+              approachingLimit={thresholdValue}
+              resetDay={resetDay}
             />
           </View>
         ) : (

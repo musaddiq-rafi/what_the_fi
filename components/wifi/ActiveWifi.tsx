@@ -9,13 +9,24 @@ interface ActiveWifiProps {
     usedMinutes: number;
     totalMinutes: number;
     onStop: () => void;
-    onEdit: () => void; // Add this
+    onEdit: () => void;
+    approachingLimit: number;  // Add this prop
+    resetDay: number;         // Add this prop
   }
 
-const ActiveWifi = ({ id, name, username, usedMinutes, totalMinutes, onStop , onEdit}: ActiveWifiProps) => {
+const ActiveWifi = ({ 
+  id, 
+  name, 
+  username, 
+  usedMinutes, 
+  totalMinutes, 
+  onStop, 
+  onEdit, 
+  approachingLimit,  // Use the prop instead of hardcoded value
+  resetDay 
+}: ActiveWifiProps) => {
   const percentage = Math.min(100, (usedMinutes / totalMinutes) * 100);
-  const approachingLimit = 10500; // hardcoded limit for demo purposes
-  const isApproachingLimit = usedMinutes > 10500;
+  const isApproachingLimit = usedMinutes > approachingLimit;
   
   return (
     <View className="bg-primary-100 p-4 rounded-xl border border-primary-200">
@@ -24,6 +35,7 @@ const ActiveWifi = ({ id, name, username, usedMinutes, totalMinutes, onStop , on
           <Text className='font-rubik-medium text-base text-primary-300'>Currently using</Text>
           <Text className="font-rubik-bold text-xl">{name}</Text>
           <Text className='font-rubik-light text-primary-300'>Approaching limit set to {approachingLimit}</Text>
+          <Text className='font-rubik-light text-primary-300'>Reset day: {resetDay}{resetDay === 1 ? 'st' : resetDay === 2 ? 'nd' : resetDay === 3 ? 'rd' : 'th'}</Text>
         </View>
         <TouchableOpacity onPress={onEdit}>
           <Text className="text-primary-300 font-rubik">Edit</Text>

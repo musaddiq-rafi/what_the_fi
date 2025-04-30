@@ -1,10 +1,40 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Switch, ScrollView } from 'react-native';
+import { useStorage } from '@/hooks/useStorage';
 
 const AppSettings = () => {
+  const { loadData, saveData } = useStorage();
   const [resetDay, setResetDay] = useState(21);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [thresholdValue, setThresholdValue] = useState(10500);
+  
+  // Load settings on component mount
+  useEffect(() => {
+    const loadSettings = async () => {
+      const savedResetDay = await loadData('resetDay');
+      const savedThreshold = await loadData('thresholdValue');
+      const savedNotifications = await loadData('notificationsEnabled');
+      
+      if (savedResetDay !== null) setResetDay(savedResetDay);
+      if (savedThreshold !== null) setThresholdValue(savedThreshold);
+      if (savedNotifications !== null) setNotificationsEnabled(savedNotifications);
+    };
+    
+    loadSettings();
+  }, []);
+  
+  // Save settings when they change
+  useEffect(() => {
+    saveData('resetDay', resetDay);
+  }, [resetDay]);
+  
+  useEffect(() => {
+    saveData('thresholdValue', thresholdValue);
+  }, [thresholdValue]);
+  
+  useEffect(() => {
+    saveData('notificationsEnabled', notificationsEnabled);
+  }, [notificationsEnabled]);
   
   // Generate days 1-31 to accommodate all possible month lengths
   const daysOfMonth = Array.from({ length: 31 }, (_, i) => i + 1);
