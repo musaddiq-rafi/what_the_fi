@@ -81,25 +81,12 @@ const AppSettings = () => {
         </View>
       </View>
       
-      <View className="mx-4 mb-4">
-        <Text className="font-rubik-medium text-lg mb-2">Backup and Reset</Text>
-        
-        <TouchableOpacity className="py-3 border-b border-primary-100">
-          <Text className="font-rubik">Reset All Data</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity className="py-3 border-b border-primary-100">
-          <Text className="font-rubik">Backup Data</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity className="py-3 border-b border-primary-100">
-          <Text className="font-rubik">Restore Data</Text>
-        </TouchableOpacity>
-      </View>
+    
+   
       
       <View className="mx-4 mb-20 mt-10">
-      <Text className="font-rubik text-center text-black text-sm border border-red-500">
-           test text 
+      <Text className="font-rubik text-center text-black text-sm ">
+           
       </Text>
       </View>
     </ScrollView>

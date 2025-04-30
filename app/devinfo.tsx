@@ -37,34 +37,50 @@ const DevInfo = () => {
           <Text className="font-rubik text-black-200">
             Built with React Native, Expo, and NativeWind.
           </Text>
+          <Text className="font-rubik text-black-100">
+            AI assistance by Github Copilot , ChatGPT and Claude.
+          </Text>
         </View>
         
         <View className="mx-4 mb-6">
-          <Text className="font-rubik-medium text-lg mb-4">Suggestions, bugs or feedback ? </Text>
-{/*           
-          <TouchableOpacity 
-            className="bg-primary-300/10 p-4 rounded-lg mb-3 flex-row items-center"
-            onPress={handleExportData}
-          >
-            <View className="w-8 h-8 rounded-full bg-primary-300 items-center justify-center mr-3">
-              <Text className="text-white font-rubik-bold">↑</Text>
-            </View>
-            <View>
-              <Text className="font-rubik-medium">Export App Data</Text>
-              <Text className="font-rubik text-xs text-black-200">Copy data to clipboard</Text>
-            </View>
-          </TouchableOpacity> */}
+          <Text className="font-rubik-medium text-lg mb-4">Suggestions, bugs or feedback?</Text>
           
           <TouchableOpacity 
             className="bg-primary-300/10 p-4 rounded-lg mb-3 flex-row items-center"
-            onPress={handleContactDeveloper}
+            onPress={() => Linking.openURL('mailto:musaddiq@iut-dhaka.edu?subject=WhatTheFi%20App%20Feedback')}
           >
             <View className="w-8 h-8 rounded-full bg-primary-300 items-center justify-center mr-3">
               <Text className="text-white font-rubik-bold">✉️</Text>
             </View>
             <View>
-              <Text className="font-rubik-medium">Contact Developer</Text>
+              <Text className="font-rubik-medium">Email Me</Text>
               <Text className="font-rubik text-xs text-black-200">Send feedback or report issues</Text>
+            </View>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            className="bg-primary-300/10 p-4 rounded-lg mb-3 flex-row items-center"
+            onPress={() => Linking.openURL('https://www.facebook.com/abdullahalmusaddiq.rafi')}
+          >
+            <View className="w-8 h-8 rounded-full bg-primary-300 items-center justify-center mr-3">
+              <Text className="text-white font-rubik-bold">f</Text>
+            </View>
+            <View>
+              <Text className="font-rubik-medium">Facebook</Text>
+              <Text className="font-rubik text-xs text-black-200">Connect with me on Facebook</Text>
+            </View>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            className="bg-primary-300/10 p-4 rounded-lg mb-3 flex-row items-center"
+            onPress={() => Linking.openURL('https://www.linkedin.com/in/musaddiq-rafi/')}
+          >
+            <View className="w-8 h-8 rounded-full bg-primary-300 items-center justify-center mr-3">
+              <Text className="text-white font-rubik-bold">in</Text>
+            </View>
+            <View>
+              <Text className="font-rubik-medium">LinkedIn</Text>
+              <Text className="font-rubik text-xs text-black-200">Connect professionally</Text>
             </View>
           </TouchableOpacity>
         </View>
@@ -86,6 +102,7 @@ const DevInfo = () => {
             </Text>
           </View>
         </View>
+        <View className="h-40" />
       </ScrollView>
     </SafeAreaView>
   );
