@@ -133,7 +133,7 @@ export default function EditWifi() {
   };
   
   return (
-    <ScrollView className="flex-1 bg-white pt-12">
+    <ScrollView className="flex-1 bg-white pt-20">
       <Stack.Screen options={{ headerShown: false }} />
       
       <View className="flex-row items-center px-4 mb-6">
