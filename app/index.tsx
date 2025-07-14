@@ -1,13 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, SafeAreaView, Image, TouchableOpacity, AppState, AppStateStatus } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, SafeAreaView, Image, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { useRouter } from 'expo-router';
 import WifiTile from '@/components/wifi/WiFiTile';
-import ActiveWifi from '@/components/wifi/ActiveWifi';
-import { useStorage } from '@/hooks/useStorage';
-import { checkResetDate } from '@/utils/dateUtils';
 import icons from '@/constants/icons';
 import * as Notifications from 'expo-notifications';
-import { registerBackgroundTask } from '@/utils/backgroundTaskHandler';
 
 // Define types with enhanced fields
 interface WiFiConnection {
@@ -19,6 +15,7 @@ interface WiFiConnection {
   totalMinutes: number;
   isActive: boolean;
   lastUpdated?: number;
+  lastScraped?: number;
 }
 
 export const getFunnyNotification = (minutes: number, name: string) => {
@@ -44,16 +41,41 @@ Notifications.setNotificationHandler({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
 
 export default function Index() {
-  const { loadData, saveData } = useStorage();
   const router = useRouter();
   const [lastNotificationTime, setLastNotificationTime] = useState<number>(0);
-  const [connections, setConnections] = useState<WiFiConnection[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [appState, setAppState] = useState(AppState.currentState);
+  
+  // Sample connections data (in a real app, this would come from API or storage)
+  const [connections, setConnections] = useState<WiFiConnection[]>([
+    {
+      id: '1',
+      name: 'IUT WiFi',
+      username: 'student123',
+      password: '********',
+      usedMinutes: 10592,
+      totalMinutes: 12000,
+      isActive: true,
+      lastUpdated: Date.now(),
+      lastScraped: Date.now() - 3600000 // 1 hour ago
+    },
+    {
+      id: '2',
+      name: 'Home WiFi',
+      username: 'homeuser',
+      password: '********',
+      usedMinutes: 5430,
+      totalMinutes: 10000,
+      isActive: false
+    }
+  ]);
+  
+  const [isLoading, setIsLoading] = useState(false);
+  const [isScrapingLoading, setIsScrapingLoading] = useState(false);
   const [notificationPermission, setNotificationPermission] = useState(false);
   const [resetDay, setResetDay] = useState(21);
   const [thresholdValue, setThresholdValue] = useState(10500);
@@ -68,82 +90,11 @@ export default function Index() {
     requestPermissions();
   }, []);
 
-  useEffect(() => {
-    registerBackgroundTask();
-  }, []);
-
-  // Create a reusable function to load connections data
-  const loadConnections = useCallback(async () => {
-    setIsLoading(true);
-    const storedConnections = await loadData('connections');
-    if (storedConnections && storedConnections.length > 0) {
-      setConnections(storedConnections);
-    }
-    
-    // Load settings
-    const savedResetDay = await loadData('resetDay') || 21;
-    const savedThreshold = await loadData('thresholdValue') || 10500;
-    
-    setResetDay(savedResetDay);
-    setThresholdValue(savedThreshold);
-    
-    // Check if reset is needed
-    const shouldReset = checkResetDate(savedResetDay);
-    
-    if (shouldReset) {
-      // Reset all counters
-      const resetConnections = storedConnections ? storedConnections.map((conn: WiFiConnection) => ({
-        ...conn,
-        usedMinutes: 0
-      })) : connections.map(conn => ({
-        ...conn,
-        usedMinutes: 0
-      }));
-      
-      setConnections(resetConnections);
-      await saveData('connections', resetConnections);
-      await saveData('lastResetDate', new Date().toISOString());
-    }
-    
-    setIsLoading(false);
-  }, []);
-
-  // Use useFocusEffect to reload data whenever the screen comes into focus
-  useFocusEffect(
-    useCallback(() => {
-      loadConnections();
-    }, [])
-  );
-  
-  // Save data to storage when connections change
-  useEffect(() => {
-    if (!isLoading) {
-      saveData('connections', connections);
-    }
-  }, [connections, isLoading]);
-
-  // Track app state (foreground, background)
-  useEffect(() => {
-    const subscription = AppState.addEventListener('change', handleAppStateChange);
-    return () => {
-      subscription.remove();
-    };
-  }, [connections]);
-
-  // Handle app state changes to save/restore active connection
-  const handleAppStateChange = async (nextAppState: AppStateStatus) => {
-    if (appState === 'active' && nextAppState.match(/inactive|background/)) {
-      // App is going to background or inactive, save connections state
-      await saveData('connections', connections);
-    }
-    setAppState(nextAppState);
-  };
-  
   // Find active connection
   const activeConnection = connections.find(conn => conn.isActive);
   
   // Handle activation of a WiFi connection
-  const handleActivate = async (id: string) => {
+  const handleActivate = (id: string) => {
     // Update connections with the newly activated one
     const updatedConnections = connections.map(conn => ({
       ...conn,
@@ -153,14 +104,11 @@ export default function Index() {
 
     setConnections(updatedConnections);
     
-    // Immediately save to AsyncStorage to persist active state
-    await saveData('connections', updatedConnections);
-    
     // Send notification if permissions granted
     if (notificationPermission) {
       const activatedConn = connections.find(conn => conn.id === id);
       if (activatedConn) {
-        await Notifications.scheduleNotificationAsync({
+        Notifications.scheduleNotificationAsync({
           content: {
             title: "WiFi Tracking Started",
             body: `Now tracking usage for ${activatedConn.name}`,
@@ -173,10 +121,10 @@ export default function Index() {
   };
   
   // Handle stopping an active connection
-  const handleStopTracking = async () => {
+  const handleStopTracking = () => {
     if (activeConnection && notificationPermission) {
       // Send notification when tracking stops
-      await Notifications.scheduleNotificationAsync({
+      Notifications.scheduleNotificationAsync({
         content: {
           title: "WiFi Tracking Stopped",
           body: `Stopped tracking ${activeConnection.name}. Used: ${activeConnection.usedMinutes} minutes`,
@@ -192,80 +140,71 @@ export default function Index() {
     }));
     
     setConnections(updatedConnections);
-    
-    // Immediately save to AsyncStorage
-    await saveData('connections', updatedConnections);
   };
 
   // Check for threshold limits and notify user
- // Modify the threshold check effect
-useEffect(() => {
-  const checkThresholds = async () => {
-    if (!activeConnection || !notificationPermission) return;
-    
-    const currentTime = Date.now();
-    const twoHoursInMs = 2 * 60 * 60 * 1000;
-    
-    // If usage exceeds threshold and enough time has passed since last notification
-    if (activeConnection.usedMinutes > thresholdValue && 
-        (currentTime - lastNotificationTime >= twoHoursInMs)) {
-      
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: "WiFi Usage Alert!",
-          body: getFunnyNotification(activeConnection.usedMinutes, activeConnection.name),
-          data: { id: activeConnection.id },
-        },
-        trigger: null, // Send immediately
-      });
-      
-      // Update last notification time
-      setLastNotificationTime(currentTime);
-      
-      // Save last notification time to storage
-      await saveData('lastNotificationTime', currentTime);
-    }
-  };
-  
-  checkThresholds();
-}, [activeConnection?.usedMinutes, thresholdValue, lastNotificationTime]);
-
-// Load last notification time when the app starts
-useEffect(() => {
-  const loadLastNotificationTime = async () => {
-    const savedTime = await loadData('lastNotificationTime');
-    if (savedTime) {
-      setLastNotificationTime(savedTime);
-    }
-  };
-  
-  loadLastNotificationTime();
-}, []);
-
-  // Simulate counter increment for active connection
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    const checkThresholds = async () => {
+      if (!activeConnection || !notificationPermission) return;
+      
+      const currentTime = Date.now();
+      const twoHoursInMs = 2 * 60 * 60 * 1000;
+      
+      // If usage exceeds threshold and enough time has passed since last notification
+      if (activeConnection.usedMinutes > thresholdValue && 
+          (currentTime - lastNotificationTime >= twoHoursInMs)) {
+        
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: "WiFi Usage Alert!",
+            body: getFunnyNotification(activeConnection.usedMinutes, activeConnection.name),
+            data: { id: activeConnection.id },
+          },
+          trigger: null, // Send immediately
+        });
+        
+        // Update last notification time
+        setLastNotificationTime(currentTime);
+      }
+    };
     
-    if (activeConnection) {
-      interval = setInterval(async () => {
-        // Add a minute and update last updated timestamp
+    checkThresholds();
+  }, [activeConnection?.usedMinutes, thresholdValue, lastNotificationTime, notificationPermission]);
+
+  // Manual data scraping function - just a placeholder for now
+  const handleManualUpdate = async () => {
+    if (!activeConnection) {
+      Alert.alert("No Active Connection", "Please activate a WiFi connection first.");
+      return;
+    }
+    
+    try {
+      setIsScrapingLoading(true);
+      
+      // Simulate an API call or scraping operation
+      setTimeout(() => {
+        // Update with mock data
         const updatedConnections = connections.map(conn => 
-          conn.isActive ? { 
-            ...conn, 
-            usedMinutes: Math.min(conn.usedMinutes + 1, conn.totalMinutes),
-            lastUpdated: Date.now()
+          conn.isActive ? {
+            ...conn,
+            usedMinutes: 10592, // Mock data
+            totalMinutes: 12000,
+            lastUpdated: Date.now(),
+            lastScraped: Date.now()
           } : conn
         );
         
         setConnections(updatedConnections);
-        
-        // Save updated usage to AsyncStorage periodically
-        await saveData('connections', updatedConnections);
-      }, 60000); // Update every minute
+        Alert.alert("Success", "WiFi data updated successfully!");
+        setIsScrapingLoading(false);
+      }, 1500);
+      
+    } catch (error) {
+      Alert.alert("Update Failed", 
+        `Could not update WiFi data: ${error instanceof Error ? error.message : String(error)}`);
+      setIsScrapingLoading(false);
     }
-    
-    return () => clearInterval(interval);
-  }, [activeConnection?.id]);
+  };
 
   const handleAddNew = () => {
     router.push({
@@ -281,6 +220,74 @@ useEffect(() => {
     });
   };
 
+  // Create a custom ActiveWifi component that includes the update button
+  const ActiveWifiWithUpdate = ({ connection }: { connection: WiFiConnection }) => {
+    return (
+      <View className="bg-white rounded-xl border border-primary-200 p-4">
+        <View className="flex-row justify-between items-center mb-2">
+          <Text className="font-rubik-semibold text-lg">{connection.name}</Text>
+          <TouchableOpacity onPress={() => handleEditWifi(connection.id)}>
+            <Image source={icons.edit} className="size-5" />
+          </TouchableOpacity>
+        </View>
+        
+        <Text className="font-rubik text-sm text-black-200 mb-4">
+          {connection.username}
+        </Text>
+        
+        <View className="mb-4">
+          <View className="flex-row justify-between items-center mb-1">
+            <Text className="font-rubik">Usage</Text>
+            <Text className="font-rubik">
+              {connection.usedMinutes} / {connection.totalMinutes} minutes
+            </Text>
+          </View>
+          
+          <View className="h-2 w-full bg-gray-200 rounded-full">
+            <View 
+              className={`h-full rounded-full ${
+                connection.usedMinutes > thresholdValue ? 'bg-red-500' : 'bg-primary-300'
+              }`}
+              style={{ width: `${Math.min(100, (connection.usedMinutes / connection.totalMinutes) * 100)}%` }}
+            />
+          </View>
+        </View>
+        
+        <View className="flex-row justify-between items-center mb-3">
+          <Text className="font-rubik text-xs text-black-200">
+            {connection.lastScraped 
+              ? `Last updated: ${new Date(connection.lastScraped).toLocaleTimeString()}`
+              : 'Not updated yet'}
+          </Text>
+          <Text className="font-rubik text-xs text-black-200">
+            Resets on day {resetDay} of the month
+          </Text>
+        </View>
+        
+        <View className="flex-row justify-between">
+          <TouchableOpacity 
+            className="bg-red-500 py-2 px-4 rounded-lg"
+            onPress={handleStopTracking}
+          >
+            <Text className="font-rubik-medium text-white">Stop Tracking</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            className={`py-2 px-4 rounded-lg ${isScrapingLoading ? 'bg-primary-100' : 'bg-primary-300'}`}
+            onPress={handleManualUpdate}
+            disabled={isScrapingLoading}
+          >
+            {isScrapingLoading ? (
+              <ActivityIndicator color="white" size="small" />
+            ) : (
+              <Text className="font-rubik-medium text-white">Update Data</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-white">
       <ScrollView className="flex-1 pt-20">
@@ -292,20 +299,10 @@ useEffect(() => {
         </View>
         <Text className="font-rubik text-black-200 mx-4 mb-6">Track it, or regret it.</Text>
         
-        {/* Active Connection */}
+        {/* Active Connection with Update Button */}
         {activeConnection ? (
           <View className="mx-4 mb-4">
-            <ActiveWifi
-              id={activeConnection.id}
-              name={activeConnection.name}
-              username={activeConnection.username}
-              usedMinutes={activeConnection.usedMinutes}
-              totalMinutes={activeConnection.totalMinutes}
-              onStop={handleStopTracking}
-              onEdit={() => handleEditWifi(activeConnection.id)}
-              approachingLimit={thresholdValue}
-              resetDay={resetDay}
-            />
+            <ActiveWifiWithUpdate connection={activeConnection} />
           </View>
         ) : (
           <View className="mx-4 mb-4 p-4 bg-accent-100 rounded-xl border border-primary-200">
@@ -341,9 +338,11 @@ useEffect(() => {
             ))}
         </View>
         
-        {/* Footer with creator info */}
+        {/* Footer with info */}
         <View className="py-4 items-center mb-2">
-          <Text className="font-rubik text-gray-400 text-xs mt-1"> </Text>
+          <Text className="font-rubik text-gray-400 text-xs mt-1">
+            Manual mode - data only updates when you refresh
+          </Text>
         </View>
       </ScrollView>
     </SafeAreaView>

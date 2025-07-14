@@ -1,23 +1,11 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Image, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useStorage } from '@/hooks/useStorage';
-import { exportData } from '../utils/storage';
-import * as Clipboard from 'expo-clipboard';
+// import { useStorage } from '@/hooks/useStorage';
+
 
 const DevInfo = () => {
-  const { loadData } = useStorage();
   
-  const handleExportData = async () => {
-    try {
-      const exportedData = await exportData();
-      await Clipboard.setStringAsync(exportedData);
-      alert('Data exported and copied to clipboard');
-    } catch (error) {
-      console.error('Error exporting data:', error);
-      alert('Failed to export data');
-    }
-  };
   
   const handleContactDeveloper = () => {
     Linking.openURL('mailto:musaddiq@iut-dhaka.edu?subject=WhatTheFi%20App%20Feedback');
